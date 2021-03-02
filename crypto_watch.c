@@ -101,6 +101,7 @@ char * find_string(struct Page *page, char needle_s[], char needle_e[]) {
 }
 
 struct Coin {
+    char symbol[12];
     double price;
     double volume;
     double price_change_24h;
@@ -121,12 +122,14 @@ struct Coin *get_coin(char symbol[]) {
         err(EXIT_FAILURE, "out of memory");
     }
 
+    // https://coinmarketcap.com/currencies/bitcoin/
     // __NEXT_DATA__.props.initialProps.pageProps.info.statistics
     cJSON *obj = json;
     obj = cJSON_GetObjectItemCaseSensitive(obj, "props");
     obj = cJSON_GetObjectItemCaseSensitive(obj, "initialProps");
     obj = cJSON_GetObjectItemCaseSensitive(obj, "pageProps");
     obj = cJSON_GetObjectItemCaseSensitive(obj, "info");
+    strcpy(c->symbol, cJSON_GetObjectItemCaseSensitive(obj, "symbol")->valuestring);
     c->volume = cJSON_GetObjectItemCaseSensitive(obj, "volume")->valuedouble;
     c->volume_change_24h = cJSON_GetObjectItemCaseSensitive(obj, "volumeChangePercentage24h")->valuedouble;
     obj = cJSON_GetObjectItemCaseSensitive(obj, "statistics");
@@ -138,23 +141,41 @@ struct Coin *get_coin(char symbol[]) {
 
 int main(void)
 {
-    struct Coin *btc = get_coin("bitcoin");
-    struct Coin *eth = get_coin("ethereum");   
+    #define COINS_SIZE 2
+    struct Coin *coins[COINS_SIZE] = {
+        get_coin("bitcoin"),
+        get_coin("ethereum"),
+    };
 
-    printf("%s $%.2f\t\t%s $%.2f\n", "BTC", btc->price, "ETH", eth->price);
+    // print header     
+    for (int i=0; i < COINS_SIZE; i++) {
+        printf("%s $%.2f", coins[i]->symbol, coins[i]->price);
+
+        if (i+1 < COINS_SIZE) {
+            printf("\t\t");
+        } else {
+            printf("\n");
+        }
+    }
+
+    // print list (dropdown)
     printf("---\n");
-    printf("BTC\t\t$%10.2f (%+.0f%%)\t\t$%10.2f (%+.0f%%)\n", btc->price, btc->price_change_24h, btc->volume, btc->volume_change_24h);
-    printf("ETH\t\t$%10.2f (%+.0f%%)\t\t$%10.2f (%+.0f%%)\n", eth->price, eth->price_change_24h, eth->volume, eth->volume_change_24h);
+    for (int i=0; i < COINS_SIZE; i++) {
+        printf("%s\t\t$%10.2f (%+.0f%%)\t\t$%6.0fM (%+.0f%%)\n", coins[i]->symbol, coins[i]->price, coins[i]->price_change_24h, coins[i]->volume / 1000000, coins[i]->volume_change_24h);
+    }
     printf("---\n");
 
+    // print footer
     char time_str[20];
     time_t curtime = time (NULL);
     struct tm * loc_time = localtime (&curtime);
     strftime(time_str, 100, "%I:%M %p", loc_time);
     printf("Last updated at %s | refresh=true \n", time_str);
 
-    free(btc);
-    free(eth);
+    // free allocated memory
+    for (int i=0; i < COINS_SIZE; i++) {
+       free(coins[i]);
+    }
     return 0;
 }
 
