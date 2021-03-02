@@ -110,7 +110,7 @@ struct Coin {
 
 struct Coin *get_coin(char symbol[]) {
     char url[100] = "https://coinmarketcap.com/currencies/";
-    strcat(url, symbol);
+    strncat(url, symbol, 24);
     struct Page page = download_html(url);
     char * str = find_string(&page, "<script id=\"__NEXT_DATA__\" type=\"application/json\">", "</script>");
     free(page.address);
@@ -139,19 +139,34 @@ struct Coin *get_coin(char symbol[]) {
     return c;
 }
 
-int main(void)
+// usage: ./crypto_watch bitcoin ethereum polkadot
+int main(int argc, char **argv)
 {
-    #define COINS_SIZE 2
-    struct Coin *coins[COINS_SIZE] = {
-        get_coin("bitcoin"),
-        get_coin("ethereum"),
-    };
+    // parse cli args
+    size_t coins_size = argc - 1;
+    char coin_names[24][24];
+    if (coins_size > 0) {
+        for (int i=0; i < coins_size && i < 24; i++) {
+            strncpy(coin_names[i], argv[i+1], 24);
+        }
+    } else {
+        // default to showing BTC and ETH
+        coins_size = 2;
+        strncpy(coin_names[0], "bitcoin", 24);
+        strncpy(coin_names[1], "ethereum", 24);
+    }
+
+    // fetch data for each given coin
+    struct Coin **coins = malloc(sizeof (struct Coin) * coins_size);
+    for (int i=0; i < coins_size; i++) {
+        coins[i] = get_coin(coin_names[i]);
+    }
 
     // print header     
-    for (int i=0; i < COINS_SIZE; i++) {
+    for (int i=0; i < coins_size; i++) {
         printf("%s $%.2f", coins[i]->symbol, coins[i]->price);
 
-        if (i+1 < COINS_SIZE) {
+        if (i+1 < coins_size) {
             printf("\t\t");
         } else {
             printf("\n");
@@ -160,7 +175,7 @@ int main(void)
 
     // print list (dropdown)
     printf("---\n");
-    for (int i=0; i < COINS_SIZE; i++) {
+    for (int i=0; i < coins_size; i++) {
         printf("%s\t\t$%10.2f (%+.0f%%)\t\t$%6.0fM (%+.0f%%)\n", coins[i]->symbol, coins[i]->price, coins[i]->price_change_24h, coins[i]->volume / 1000000, coins[i]->volume_change_24h);
     }
     printf("---\n");
@@ -173,9 +188,10 @@ int main(void)
     printf("Last updated at %s | refresh=true \n", time_str);
 
     // free allocated memory
-    for (int i=0; i < COINS_SIZE; i++) {
+    for (int i=0; i < coins_size; i++) {
        free(coins[i]);
     }
+    free(coins);
     return 0;
 }
 
