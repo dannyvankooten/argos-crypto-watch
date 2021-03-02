@@ -52,6 +52,7 @@ struct Page download_html(char url[]) {
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, download);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &chunk);
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1);
     curl_easy_setopt(curl, CURL_SOCKET_TIMEOUT, 10);
     #ifdef __APPLE__
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
@@ -68,11 +69,10 @@ struct Page download_html(char url[]) {
     return chunk;        
 }
 
-/* find first occurence of needle in page buffer */
-int find_in_page(struct Page *page, char needle[]) {
-    int i;
+/* find first occurence of needle (after start) in page buffer */
+int find_in_page(struct Page *page, char needle[], int start) {
     int len = strlen(needle);
-    for (i=0; i < page->size; i++) {
+    for (int i=start; i < page->size; i++) {
          if (memcmp(needle, &page->buf[i], len) == 0) {
            return i;
         }
@@ -82,14 +82,13 @@ int find_in_page(struct Page *page, char needle[]) {
 }
 
 char * find_string(struct Page *page, char needle_s[], char needle_e[]) {
-    int i_start = find_in_page(page, needle_s) + strlen(needle_s);
-    page->buf += i_start;
-    page->size -= i_start;
-    int i_end = find_in_page(page, needle_e) + i_start;
-    page->buf -= i_start;
-    page->size += i_start;    
-
-    char * buf = malloc(1024*512);
+    int i_start = find_in_page(page, needle_s, 0);
+    if (i_start == -1) {
+        return NULL;
+    }
+    i_start = i_start + strlen(needle_s);
+    int i_end = find_in_page(page, needle_e, i_start);
+    char *buf = malloc(i_end - i_start);
     if (buf == NULL) {
         err(EXIT_FAILURE, "out of memory");
     }
@@ -111,8 +110,18 @@ struct Coin {
 struct Coin *get_coin(char symbol[]) {
     char url[100] = "https://coinmarketcap.com/currencies/";
     strncat(url, symbol, 24);
+
     struct Page page = download_html(url);
+    if (page.size == 0) {
+        free(page.address);
+        return NULL;
+    }
+
     char * str = find_string(&page, "<script id=\"__NEXT_DATA__\" type=\"application/json\">", "</script>");
+    if (str == NULL) {
+        return NULL;
+    }
+
     free(page.address);
     cJSON *json = cJSON_Parse(str);
     free(str);
@@ -160,6 +169,9 @@ int main(int argc, char **argv)
     struct Coin **coins = malloc(sizeof (struct Coin) * coins_size);
     for (int i=0; i < coins_size; i++) {
         coins[i] = get_coin(coin_names[i]);
+        if (coins[i] == NULL) {
+            errx(EXIT_FAILURE, "unable to get data for coin %s", coin_names[i]);
+        }
     }
 
     // print header     
