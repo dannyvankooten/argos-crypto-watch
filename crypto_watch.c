@@ -179,7 +179,7 @@ int main(int argc, char **argv)
         printf("%s $%.2f", coins[i]->symbol, coins[i]->price);
 
         if (i+1 < coins_size) {
-            printf("\t\t");
+            printf("\t");
         } else {
             printf("\n");
         }
@@ -187,8 +187,9 @@ int main(int argc, char **argv)
 
     // print list (dropdown)
     printf("---\n");
+    printf("%-8s\t%-11s\t%-3s\t%-9s\t%-3s | font=monospace \n", "Coin", "Price", "Chg", "Volume", "Chg");
     for (int i=0; i < coins_size; i++) {
-        printf("%s\t\t$%10.2f (%+.0f%%)\t\t$%6.0fM (%+.0f%%)\n", coins[i]->symbol, coins[i]->price, coins[i]->price_change_24h, coins[i]->volume / 1000000, coins[i]->volume_change_24h);
+        printf("%-8s\t$%9.2f\t%+3.0f%%\t$%6.0fM\t%+3.0f%% | font=monospace\n", coins[i]->symbol, coins[i]->price, coins[i]->price_change_24h, coins[i]->volume / 1000000, coins[i]->volume_change_24h);
     }
     printf("---\n");
 

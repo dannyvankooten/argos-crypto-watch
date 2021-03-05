@@ -11,7 +11,8 @@ clean:
 
 .PHONY: install
 install: crypto_watch 
-	cp $< $(HOME)/.config/argos/crypto_watch.15m
+	cp $< $(HOME)/.config/argos/crypto_watch.15m.bin
+	cp $< $(HOME)/.local/bin/$^
 
 .PHONY: uninstall 
 uninstall:
