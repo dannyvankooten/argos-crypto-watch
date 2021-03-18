@@ -69,33 +69,27 @@ struct Page download_html(char url[]) {
     return chunk;        
 }
 
-/* find first occurence of needle (after start) in page buffer */
-int find_in_page(struct Page *page, char needle[], int start) {
-    int len = strlen(needle);
-    for (int i=start; i < page->size; i++) {
-         if (memcmp(needle, &page->buf[i], len) == 0) {
-           return i;
-        }
-    }
-
-    return -1;
-}
-
 char * find_string(struct Page *page, char needle_s[], char needle_e[]) {
-    int i_start = find_in_page(page, needle_s, 0);
-    if (i_start == -1) {
+    char *start = strstr(page->buf, needle_s);
+    if (start == NULL) {
         return NULL;
     }
-    i_start = i_start + strlen(needle_s);
-    int i_end = find_in_page(page, needle_e, i_start);
-    char *buf = malloc(i_end - i_start);
+    start += strlen(needle_s);
+
+    char *end = strstr(start, needle_e);
+    if (end == NULL) {
+        return NULL;
+    }
+    
+    char *buf = malloc(end - start);
     if (buf == NULL) {
         err(EXIT_FAILURE, "out of memory");
     }
-    for (int i=i_start, j=0; i < i_end; i++) {
-        buf[j++] = page->buf[i];
+    char *str = buf;
+    while (start < end) {
+        *str++ = *start++;
     }
-
+    *str = '\0';
     return buf;
 }
 
@@ -109,7 +103,7 @@ struct Coin {
 
 struct Coin *get_coin(char symbol[]) {
     char url[100] = "https://coinmarketcap.com/currencies/";
-    strncat(url, symbol, 24);
+    strcat(url, symbol);
 
     struct Page page = download_html(url);
     if (page.size == 0) {
@@ -117,7 +111,7 @@ struct Coin *get_coin(char symbol[]) {
         return NULL;
     }
 
-    char * str = find_string(&page, "<script id=\"__NEXT_DATA__\" type=\"application/json\">", "</script>");
+    char *str = find_string(&page, "<script id=\"__NEXT_DATA__\" type=\"application/json\">", "</script>");
     if (str == NULL) {
         return NULL;
     }
@@ -148,6 +142,14 @@ struct Coin *get_coin(char symbol[]) {
     return c;
 }
 
+// copy at most len bytes from src into dest and null-terminate the result
+void strcopy(char *dest, char *src, size_t len) {
+    for (size_t i=0; i < len && *src != '\0'; i++) {
+        *dest++ = *src++;
+    }
+    *dest = '\0';
+}
+
 // usage: ./crypto_watch bitcoin ethereum polkadot
 int main(int argc, char **argv)
 {
@@ -156,13 +158,13 @@ int main(int argc, char **argv)
     char coin_names[24][24];
     if (coins_size > 0) {
         for (int i=0; i < coins_size && i < 24; i++) {
-            strncpy(coin_names[i], argv[i+1], 24);
+            strcopy(coin_names[i], argv[i+1], 24);
         }
     } else {
         // default to showing BTC and ETH
         coins_size = 2;
-        strncpy(coin_names[0], "bitcoin", 24);
-        strncpy(coin_names[1], "ethereum", 24);
+        strcpy(coin_names[0], "bitcoin");
+        strcpy(coin_names[1], "ethereum");
     }
 
     // fetch data for each given coin
@@ -170,7 +172,7 @@ int main(int argc, char **argv)
     for (int i=0; i < coins_size; i++) {
         coins[i] = get_coin(coin_names[i]);
         if (coins[i] == NULL) {
-            errx(EXIT_FAILURE, "unable to get data for coin %s", coin_names[i]);
+            err(EXIT_FAILURE, "unable to get data for coin %s", coin_names[i]);
         }
     }
 

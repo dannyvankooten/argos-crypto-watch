@@ -1,4 +1,4 @@
-CFLAGS=-Wall -pedantic -g 
+CFLAGS=-Wall -pedantic -g -std=c11
 LIBS= -L/usr/lib -lcurl 
 PREFIX=/usr/local
 
